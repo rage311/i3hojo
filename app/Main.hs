@@ -24,10 +24,10 @@ data Urgency =
 urgencyColor :: Urgency -> T.Text
 urgencyColor urgency =
   case urgency of
-    Normal    -> "#ffffff"
-    Important -> "#ffffff"
+    Normal    -> "#aaaaaa"
+    Important -> "#dddddd"
     Urgent    -> "#ffffff"
-    Critical  -> "#ffffff"
+    Critical  -> "#ff0000"
 
 data PluginStatus = PluginStatus {
   text    :: T.Text,
@@ -41,8 +41,9 @@ data Cmd = Cmd {
 }
 
 class Plugin a where
-  runPlugin   :: a -> IO PluginStatus
-  clickPlugin :: a -> IO ()
+  runPlugin     :: a -> IO PluginStatus
+  clickPlugin   :: a -> IO ()
+  -- urgencyPlugin :: (T.Text -> Urgency) -> T.Text -> Urgency
 
 instance Plugin Cmd where
   clickPlugin :: Cmd -> IO ()
@@ -51,18 +52,22 @@ instance Plugin Cmd where
   runPlugin :: Cmd -> IO PluginStatus
   runPlugin (Cmd { cmd, args, stdinContent }) = do
     result <- readProcess cmd args stdinContent
-    let res = T.stripEnd $ T.pack result
-    return PluginStatus { text = res, urgency = Normal }
+    let res = T.stripStart $ T.stripEnd $ T.pack result
+    return PluginStatus { text = res, urgency = (dfUrgency (\_ -> Normal) res) }
+
+dfUrgency :: (T.Text -> Urgency) -> T.Text -> Urgency
+dfUrgency f = f
 
 newtype ChannelData = ChannelData (MVar (Int, PluginStatus))
 
 -- TODO: "click" config
 data PluginConfig = PluginConfig {
-  delay    :: Int,
-  uniqueId :: Int,
-  run      :: IO PluginStatus,
+  delay      :: Int,
+  uniqueId   :: Int,
+  run        :: IO PluginStatus,
+  --getUrgency :: PluginStatus -> Urgency,
   --run      :: a -> IO PluginStatus,
-  channel  :: ChannelData
+  channel    :: ChannelData
 }
 
 staticHeader :: String
@@ -77,12 +82,13 @@ fullOutput :: [T.Text] -> T.Text
 fullOutput widgets =
   "[" <> "{" <> T.intercalate "},{" widgets <> "}],\n"
 
-recurring ::  PluginConfig -> IO ()
-recurring cfg@(PluginConfig { delay, uniqueId, channel }) = forever $ do
-  result <- run cfg
-  let (ChannelData cd) = channel
-  putMVar cd (uniqueId, result)
-  threadDelay delay
+recurring :: PluginConfig -> IO ()
+recurring cfg@(PluginConfig { delay, uniqueId, channel }) =
+  forever $ do
+    result <- run cfg
+    let (ChannelData cd) = channel
+    putMVar cd (uniqueId, result)
+    threadDelay delay
   
 readStat :: ChannelData -> IO (Int, T.Text)
 readStat (ChannelData cd) = do
@@ -136,8 +142,8 @@ testPlugins cd = [
   PluginConfig {
     channel = cd,
     run = runPlugin Cmd {
-      cmd = "ls",
-      args = ["-Al", "| tail -1"],
+      cmd = "/home/matt/dev/i3hojo/tmp_plugins/df.sh",
+      args = [],
       stdinContent = ""
     },
     delay = 2_000_000,
