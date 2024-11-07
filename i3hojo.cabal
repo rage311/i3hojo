@@ -58,7 +58,11 @@ executable i3hojo
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules:
+        Cmd,
+        Plugin,
+        TestData,
+        PluginExample
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

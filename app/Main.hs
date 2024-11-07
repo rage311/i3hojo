@@ -1,9 +1,7 @@
-{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DisambiguateRecordFields #-}
 
 module Main where
 
@@ -11,64 +9,10 @@ import Control.Concurrent
 import Control.Monad
 import qualified Data.Text as T
 import System.IO
-import System.Process
 
-data Urgency =
-  Normal
-  | Important
-  | Urgent
-  | Critical
-  deriving (Show, Eq)
-
--- TODO: actual colors
-urgencyColor :: Urgency -> T.Text
-urgencyColor urgency =
-  case urgency of
-    Normal    -> "#aaaaaa"
-    Important -> "#dddddd"
-    Urgent    -> "#ffffff"
-    Critical  -> "#ff0000"
-
-data PluginStatus = PluginStatus {
-  text    :: T.Text,
-  urgency :: Urgency
-} deriving (Show, Eq)
-
-data Cmd = Cmd {
-  cmd          :: FilePath,
-  args         :: [String],
-  stdinContent :: String
-}
-
-class Plugin a where
-  runPlugin     :: a -> IO PluginStatus
-  clickPlugin   :: a -> IO ()
-  -- urgencyPlugin :: (T.Text -> Urgency) -> T.Text -> Urgency
-
-instance Plugin Cmd where
-  clickPlugin :: Cmd -> IO ()
-  clickPlugin _this = return ()
-
-  runPlugin :: Cmd -> IO PluginStatus
-  runPlugin (Cmd { cmd, args, stdinContent }) = do
-    result <- readProcess cmd args stdinContent
-    let res = T.stripStart $ T.stripEnd $ T.pack result
-    return PluginStatus { text = res, urgency = (dfUrgency (\_ -> Normal) res) }
-
-dfUrgency :: (T.Text -> Urgency) -> T.Text -> Urgency
-dfUrgency f = f
-
-newtype ChannelData = ChannelData (MVar (Int, PluginStatus))
-
--- TODO: "click" config
-data PluginConfig = PluginConfig {
-  delay      :: Int,
-  uniqueId   :: Int,
-  run        :: IO PluginStatus,
-  --getUrgency :: PluginStatus -> Urgency,
-  --run      :: a -> IO PluginStatus,
-  channel    :: ChannelData
-}
+import Plugin
+import TestData
+import PluginExample (testPlugin, initializePlugin)
 
 staticHeader :: String
 staticHeader = "{\"version\":1}"
@@ -77,18 +21,19 @@ widget :: PluginStatus -> T.Text
 widget (PluginStatus { text, urgency }) =
   "\"full_text\":\"" <> text <> "\""
   <> ",\"color\":\"" <> urgencyColor urgency <> "\""
+  -- <> ",\"name\":\"billy\""
 
 fullOutput :: [T.Text] -> T.Text
 fullOutput widgets =
   "[" <> "{" <> T.intercalate "},{" widgets <> "}],\n"
 
-recurring :: PluginConfig -> IO ()
-recurring cfg@(PluginConfig { delay, uniqueId, channel }) =
+recurring :: Plugin a => PluginHandle a -> IO ()
+recurring (PluginHandle { uniqueId, channel, plugin }) =
   forever $ do
-    result <- run cfg
+    result <- runPlugin (core plugin)
     let (ChannelData cd) = channel
     putMVar cd (uniqueId, result)
-    threadDelay delay
+    threadDelay (delay plugin)
   
 readStat :: ChannelData -> IO (Int, T.Text)
 readStat (ChannelData cd) = do
@@ -120,44 +65,20 @@ main = do
 
   cd <- ChannelData <$> newEmptyMVar
 
-  let plugins = testPlugins cd
+  -- let plugins = testPlugins
+  let hnd = initializePlugin 0 cd testPlugin
 
   -- goForkYourselfTshirts
-  _threadIds <- mapM (\p -> forkFinally
-    (recurring p)
-    (\case
-        Left ex  -> do print ex
-        Right () -> do putStrLn "Success? (Should never happen)"
-    ))
-    plugins
+  _threadIds <- mapM (\p ->
+      forkFinally
+        (recurring p)
+        (\case
+            Left ex  -> do print ex
+            Right () -> do putStrLn "Success? (Should never happen)"
+        )
+    ) [hnd]
 
-  doLoop cd $ replicate (length plugins) ""
+  --doLoop cd $ replicate (length plugins) ""
+  doLoop cd $ replicate 1 ""
   return ()
-
-
-
--- DATA
-testPlugins :: ChannelData -> [PluginConfig]
-testPlugins cd = [
-  PluginConfig {
-    channel = cd,
-    run = runPlugin Cmd {
-      cmd = "/home/matt/dev/i3hojo/tmp_plugins/df.sh",
-      args = [],
-      stdinContent = ""
-    },
-    delay = 2_000_000,
-    uniqueId = 0
-  },
-  PluginConfig {
-    channel = cd,
-    run = runPlugin Cmd {
-      cmd = "date",
-      args = ["-u"],
-      stdinContent = ""
-    },
-    delay = 3_000_000,
-    uniqueId = 1
-  }
-  ]
 
