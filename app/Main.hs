@@ -1,84 +1,68 @@
 {-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
+--{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Control.Concurrent
 import Control.Monad
-import qualified Data.Text as T
+import Data.List
 import System.IO
 
 import Plugin
-import TestData
-import PluginExample (testPlugin, initializePlugin)
+import PluginConfigs (pluginConfigs)
 
-staticHeader :: String
-staticHeader = "{\"version\":1}"
+i3StaticHeader :: String
+i3StaticHeader = "{\"version\":1}"
 
-widget :: PluginStatus -> T.Text
-widget (PluginStatus { text, urgency }) =
-  "\"full_text\":\"" <> text <> "\""
-  <> ",\"color\":\"" <> urgencyColor urgency <> "\""
-  -- <> ",\"name\":\"billy\""
+i3FullOutput :: [String] -> String
+i3FullOutput widgets =
+  "[" <> "{" <> intercalate "},{" widgets <> "}],\n"
 
-fullOutput :: [T.Text] -> T.Text
-fullOutput widgets =
-  "[" <> "{" <> T.intercalate "},{" widgets <> "}],\n"
+readStat :: ChannelData -> IO (Int, String)
+readStat cd = do
+  (plugId, stat) <- takeMVar cd
+  return (plugId, show stat)
 
-recurring :: Plugin a => PluginHandle a -> IO ()
-recurring (PluginHandle { uniqueId, channel, plugin }) =
-  forever $ do
-    result <- runPlugin (core plugin)
-    let (ChannelData cd) = channel
-    putMVar cd (uniqueId, result)
-    threadDelay (delay plugin)
-  
-readStat :: ChannelData -> IO (Int, T.Text)
-readStat (ChannelData cd) = do
-  (cmdId, stat) <- takeMVar cd
-  return (cmdId, widget stat)
 
-doLoop :: ChannelData -> [T.Text] -> IO ()
-doLoop cd plugins = do
-  (cmdId, stat) <- readStat cd
+doLoop :: ChannelData -> [String] -> IO ()
+doLoop cd plugins = forever $ do
+  (plugId, stat) <- readStat cd
 
   let plugins' =
         zipWith (\thisId thisStat ->
-          if thisId == cmdId then
+          if thisId == plugId then
             stat
           else
             thisStat
         ) [0..] plugins
 
-  putStr $ T.unpack $ fullOutput plugins'
+  putStr $ i3FullOutput plugins'
   hFlush stdout
   doLoop cd plugins'
 
 main :: IO ()
 main = do
   -- i3bar header
-  putStrLn staticHeader
+  putStrLn i3StaticHeader
   putStrLn "["
   hFlush stdout
 
-  cd <- ChannelData <$> newEmptyMVar
+  cd <- newEmptyMVar
 
-  -- let plugins = testPlugins
-  let hnd = initializePlugin 0 cd testPlugin
+  let handles = zipWith (\plug myId -> runPlugin plug myId cd) pluginConfigs [0..]
 
   -- goForkYourselfTshirts
   _threadIds <- mapM (\p ->
       forkFinally
-        (recurring p)
+        p
         (\case
             Left ex  -> do print ex
             Right () -> do putStrLn "Success? (Should never happen)"
         )
-    ) [hnd]
+    ) handles
 
-  --doLoop cd $ replicate (length plugins) ""
-  doLoop cd $ replicate 1 ""
+  doLoop cd $ replicate (length handles) ""
   return ()
 

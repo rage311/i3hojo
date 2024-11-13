@@ -1,27 +1,26 @@
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Cmd where
 
-import qualified Data.Text as T
+import Data.Char
+import System.Exit
 import System.Process
-import Plugin
+
+type ProcessResult = (ExitCode, String, String)
 
 data Cmd = Cmd {
-  cmd          :: FilePath,
+  command      :: FilePath,
   args         :: [String],
   stdinContent :: String
 }
 
-instance Plugin Cmd where
-  clickPlugin :: Cmd -> IO ()
-  clickPlugin _this = return ()
+trimCmd :: Cmd -> IO ProcessResult
+trimCmd (Cmd { command, args, stdinContent }) = do
+    (exitCode, stdout, stderr) <- readProcessWithExitCode
+      command
+      args
+      stdinContent
 
-  runPlugin :: Cmd -> IO PluginStatus
-  --runPlugin plug@(PluginConfig { delay, getUrgency, run }) = do
-  runPlugin cmd'@(Cmd { cmd, args, stdinContent }) = do
-    result <- readProcess cmd args stdinContent
-    -- return result
-    let res = T.stripStart $ T.stripEnd $ T.pack result
-    return PluginStatus { text = res, urgency = Urgent }
-    --return PluginStatus { text = res, urgency = urgencyPlugin $ Just (getUrgency plug ("" :: T.Text)) }
+    return (exitCode, trim stdout, trim stderr)
+  where
+    trim inp = dropWhile isSpace $ reverse $ dropWhile isSpace $ reverse inp

@@ -1,11 +1,14 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Plugin where
 
 import Control.Concurrent
-import qualified Data.Text as T
+import Control.Monad (forever)
 
-newtype ChannelData = ChannelData (MVar (Int, PluginStatus))
+type ChannelData = (MVar (Int, PluginStatus))
 
 data Urgency =
   Normal
@@ -14,8 +17,7 @@ data Urgency =
   | Critical
   deriving (Show, Eq)
 
--- TODO: actual colors
-urgencyColor :: Urgency -> T.Text
+urgencyColor :: Urgency -> String
 urgencyColor urg =
   case urg of
     Normal    -> "#aaaaaa"
@@ -23,33 +25,33 @@ urgencyColor urg =
     Urgent    -> "#ffffff"
     Critical  -> "#ff0000"
 
-
--- TODO: "click" config
--- user-defined config
-data PluginConfig a = PluginConfig {
-  delay      :: Int,
-  getUrgency :: Maybe (T.Text -> Urgency, T.Text) -> Urgency,
-  core       :: a
-}
-
-data PluginHandle a = PluginHandle {
-  uniqueId :: Int,
-  channel  :: ChannelData,
-  plugin   :: PluginConfig a
-}
-
 data PluginStatus = PluginStatus {
-  text    :: T.Text,
+  icon    :: String,
+  text    :: String,
   urgency :: Urgency
-} deriving (Show, Eq)
+} deriving Eq
 
-class Plugin a where
-  --runPlugin     :: PluginConfig a -> IO PluginStatus
-  runPlugin     :: a -> IO PluginStatus
-  clickPlugin   :: a -> IO ()
-  --urgencyPlugin :: (T.Text -> Urgency) -> T.Text -> Urgency
+instance Show PluginStatus where
+  show (PluginStatus { icon, text, urgency }) =
+    let fullText = icon <> " " <> text
+    in
+      "\"full_text\":\""
+        <> fullText
+        <> "\","
+      <> "\"color\":\""
+        <> urgencyColor urgency
+        <> "\""
 
-urgencyPlugin :: Maybe (T.Text -> Urgency, T.Text) -> Urgency
-urgencyPlugin (Just (f, x)) = f x
-urgencyPlugin Nothing       = Normal
+type MouseBtn = Int
 
+data Plugin = Plugin {
+  click  :: MouseBtn -> IO (),
+  delay  :: Int,
+  status :: IO PluginStatus
+}
+
+runPlugin :: Plugin -> Int -> ChannelData -> IO ()
+runPlugin plugin myId cd = forever $ do
+  stat <- status plugin
+  putMVar cd (myId, stat)
+  threadDelay $ delay plugin * 1_000_000
