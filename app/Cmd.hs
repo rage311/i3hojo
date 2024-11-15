@@ -16,11 +16,12 @@ data Cmd = Cmd {
 
 trimCmd :: Cmd -> IO ProcessResult
 trimCmd (Cmd { command, args, stdinContent }) = do
-    (exitCode, stdout, stderr) <- readProcessWithExitCode
+  (exitCode, stdout, stderr) <-
+    readProcessWithExitCode
       command
       args
       stdinContent
 
-    return (exitCode, trim stdout, trim stderr)
+  return (exitCode, trim stdout, trim stderr)
   where
     trim inp = dropWhile isSpace $ reverse $ dropWhile isSpace $ reverse inp

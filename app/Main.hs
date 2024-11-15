@@ -1,12 +1,10 @@
 {-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
---{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Control.Concurrent
-import Control.Monad
 import Data.List
 import System.IO
 
@@ -25,9 +23,8 @@ readStat cd = do
   (plugId, stat) <- takeMVar cd
   return (plugId, show stat)
 
-
 doLoop :: ChannelData -> [String] -> IO ()
-doLoop cd plugins = forever $ do
+doLoop cd plugins = do
   (plugId, stat) <- readStat cd
 
   let plugins' =
@@ -51,18 +48,19 @@ main = do
 
   cd <- newEmptyMVar
 
-  let handles = zipWith (\plug myId -> runPlugin plug myId cd) pluginConfigs [0..]
+  let handles =
+        zipWith (\plug myId ->
+          runPlugin plug myId cd
+        ) pluginConfigs [0..]
 
   -- goForkYourselfTshirts
-  _threadIds <- mapM (\p ->
-      forkFinally
-        p
+  _threadIds <- mapM (\plug ->
+      forkFinally plug
         (\case
-            Left ex  -> do print ex
-            Right () -> do putStrLn "Success? (Should never happen)"
+          Left ex  -> do print ex
+          Right () -> do putStrLn "Success? (Should never happen?)"
         )
     ) handles
 
   doLoop cd $ replicate (length handles) ""
   return ()
-

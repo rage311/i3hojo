@@ -12,38 +12,42 @@ pluginConfigs = [
         status = do
           (_exitCode, out, _err)
             <- trimCmd (Cmd {
-              command = "light",
-              args = [],
+              command      = "light",
+              args         = [],
               stdinContent = ""
             })
           return PluginStatus {
-            icon = [chr 0xf0eb],
-            text = out <> "%",
+            icon    = [chr 0xf0eb],
+            text    = takeWhile isDigit out <> "%",
             urgency = Normal
           }
       },
       Plugin {
         click  = \_ -> return (),
-        delay  = 3,
+        delay  = 30,
         status = do
           (_exitCode, out, _err)
             <- trimCmd (Cmd {
-              command = "/home/matt/dev/i3hojo/tmp_plugins/df.sh",
-              args = [],
+              command      = "./tmp_plugins/df.sh",
+              args         = [],
               stdinContent = ""
             })
           return PluginStatus { icon = "/", text = out, urgency = Normal }
       },
       Plugin {
         click  = \_ -> return (),
-        delay  = 5,
+        delay  = 30,
         status = do
           (_exitCode, out, _err)
             <- trimCmd (Cmd {
-              command = "date",
-              args = [ "+%Z %a %m/%d %H:%M" ],
+              command      = "date",
+              args         = [ "+%Z %a %m/%d %H:%M" ],
               stdinContent = ""
             })
-          return PluginStatus { icon = [chr 0xf073], text = out, urgency = Normal }
+          return PluginStatus {
+            icon    = [chr 0xf073],
+            text    = out,
+            urgency = Normal
+          }
       }
     ]
