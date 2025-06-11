@@ -24,4 +24,4 @@ trimCmd (Cmd { command, args, stdinContent }) = do
 
   return (exitCode, trim stdout, trim stderr)
   where
-    trim inp = dropWhile isSpace $ reverse $ dropWhile isSpace $ reverse inp
+    trim inp = reverse $ dropWhile isSpace $ reverse $ dropWhile isSpace inp

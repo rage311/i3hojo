@@ -71,7 +71,10 @@ executable i3hojo
         base ^>=4.17.2.1,
         async ^>=2.2.5,
         process,
-        text
+        text,
+        aeson,
+        utf8-string,
+        time
 
     -- Directories containing source files.
     hs-source-dirs:   app

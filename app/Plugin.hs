@@ -17,6 +17,15 @@ data Urgency =
   | Critical
   deriving (Show, Eq)
 
+urgencyFromInt :: Int -> Urgency
+urgencyFromInt int =
+  case int of
+    0 -> Normal
+    1 -> Important
+    2 -> Urgent
+    3 -> Critical
+    _ -> Normal
+
 urgencyColor :: Urgency -> String
 urgencyColor urg =
   case urg of
@@ -50,8 +59,39 @@ data Plugin = Plugin {
   status :: IO PluginStatus
 }
 
+clickPlugin :: Plugin -> MouseBtn -> IO ()
+clickPlugin = click
+  -- click self
+  -- return ()
+
 runPlugin :: Plugin -> Int -> ChannelData -> IO ()
 runPlugin plugin myId cd = forever $ do
   stat <- status plugin
   putMVar cd (myId, stat)
   threadDelay $ delay plugin * 1_000_000
+
+data Click
+  = MouseLeft
+  | MouseMiddle
+  | MouseRight
+  | MouseUp
+  | MouseDown
+  | MouseUnknown
+
+clickFromInt :: Int -> Click
+clickFromInt btn =
+  case btn of
+    -- TODO: hide prelude "Right", "Left" for renaming?
+    1 -> MouseLeft
+    2 -> MouseMiddle
+    3 -> MouseRight
+    4 -> MouseUp
+    5 -> MouseDown
+    _ -> MouseUnknown
+
+i3mojoStatus :: String -> (Urgency, String)
+i3mojoStatus input = (urg, text')
+  where
+    urg = urgencyFromInt $ read $ takeWhile (/= ':') input
+    text' = dropWhile (== ':') $ dropWhile (/= ':') input
+
