@@ -60,10 +60,6 @@ type StatusFn     = MouseBtn -> IO ()
 type PluginID     = Int
 type PluginHandle = (PluginID, (ClickFn, StatusFn))
 
--- TODO: clickPlugin and runPlugin have same first two params now
-doPluginStuff :: ChannelData -> Plugin
-doPluginStuff = undefined
-
 clickPlugin :: ChannelData -> Plugin -> PluginID -> MouseBtn -> IO ()
 clickPlugin cd self myId btn = click self btn >>
   status self >>= \stat -> putMVar cd (myId, stat)

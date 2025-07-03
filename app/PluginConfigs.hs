@@ -1,6 +1,7 @@
 module PluginConfigs where
 
 import Data.Char
+import System.Directory
 import System.Process
 
 import Cmd
@@ -13,12 +14,14 @@ pluginConfigs = [
       click  = \_ -> return (),
       delay  = 15,
       status = do
+        home <- getHomeDirectory
         (_exitCode, out, _err)
+
           <- trimCmd (Cmd {
             command = "/usr/bin/env",
             args    = [
               "perl",
-              "/home/matt/dev/i3mojo/i3hojo_wrapper.pl",
+              home <> "/dev/i3mojo/i3hojo_wrapper.pl",
               "linux_wifi"
             ],
             stdinContent = ""
@@ -35,12 +38,13 @@ pluginConfigs = [
       click  = \_ -> return (),
       delay  = 30,
       status = do
+        home <- getHomeDirectory
         (_exitCode, out, _err)
           <- trimCmd (Cmd {
             command      = "/usr/bin/env",
             args         = [
               "perl",
-              "/home/matt/dev/i3mojo/i3hojo_wrapper.pl",
+              home <> "/dev/i3mojo/i3hojo_wrapper.pl",
               "linux_battery",
               "{\"sys_path\":\"/sys/class/power_supply/BAT1\"}"
             ],
@@ -83,10 +87,11 @@ pluginConfigs = [
       click  = \_ -> return (),
       delay  = 60,
       status = do
+        home <- getHomeDirectory
         (_exitCode, out, _err)
           <- trimCmd (Cmd {
             command      = "/bin/sh",
-            args         = [ "/home/matt/dev/i3hojo/tmp_plugins/df.sh", "/" ],
+            args         = [ home <> "/dev/i3hojo/tmp_plugins/df.sh", "/" ],
             stdinContent = ""
           })
         return PluginStatus {
@@ -100,10 +105,11 @@ pluginConfigs = [
       click  = \_ -> return (),
       delay  = 60,
       status = do
+        home <- getHomeDirectory
         (_exitCode, out, _err)
           <- trimCmd (Cmd {
             command      = "/bin/sh",
-            args         = [ "/home/matt/dev/i3hojo/tmp_plugins/df.sh", "/home" ],
+            args         = [ home <> "/dev/i3hojo/tmp_plugins/df.sh", "/home" ],
             stdinContent = ""
           })
         return PluginStatus {
@@ -150,12 +156,13 @@ pluginConfigs = [
           _ -> return (),
       delay  = 30,
       status = do
+        home <- getHomeDirectory
         (_exitCode, out, _err)
           <- trimCmd (Cmd {
             command      = "/usr/bin/env",
             args         = [
               "perl",
-              "/home/matt/dev/i3mojo/i3hojo_wrapper.pl",
+              home <> "/dev/i3mojo/i3hojo_wrapper.pl",
               "pulseaudio"
             ],
             stdinContent = ""
