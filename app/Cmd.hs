@@ -8,11 +8,11 @@ import System.Process
 
 type ProcessResult = (ExitCode, String, String)
 
-data Cmd = Cmd {
-  command      :: FilePath,
-  args         :: [String],
-  stdinContent :: String
-}
+data Cmd = Cmd
+  { command      :: FilePath
+  , args         :: [String]
+  , stdinContent :: String
+  }
 
 trimCmd :: Cmd -> IO ProcessResult
 trimCmd (Cmd { command, args, stdinContent }) = do

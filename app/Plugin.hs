@@ -10,21 +10,17 @@ import Control.Monad (forever)
 
 type ChannelData = (MVar (Int, PluginStatus))
 
-data Urgency =
-  Normal
+data Urgency
+  = Normal
   | Important
   | Urgent
   | Critical
-  deriving (Show, Eq)
+  deriving (Enum, Eq, Show)
 
 urgencyFromInt :: Int -> Urgency
-urgencyFromInt int =
-  case int of
-    0 -> Normal
-    1 -> Important
-    2 -> Urgent
-    3 -> Critical
-    _ -> Normal
+urgencyFromInt int
+  | int >= fromEnum Normal && int <= fromEnum Critical = toEnum int
+  | otherwise = Normal
 
 urgencyColor :: Urgency -> String
 urgencyColor urg =
@@ -34,11 +30,11 @@ urgencyColor urg =
     Urgent    -> "#ffffff"
     Critical  -> "#ff0000"
 
-data PluginStatus = PluginStatus {
-  icon    :: String,
-  text    :: String,
-  urgency :: Urgency
-} deriving Eq
+data PluginStatus = PluginStatus
+  { icon    :: String
+  , text    :: String
+  , urgency :: Urgency
+  } deriving Eq
 
 instance Show PluginStatus where
   show (PluginStatus { icon, text, urgency }) =
@@ -53,41 +49,45 @@ instance Show PluginStatus where
 
 type MouseBtn = Int
 
-data Plugin = Plugin {
-  click  :: MouseBtn -> IO (),
-  delay  :: Int,
-  status :: IO PluginStatus
-}
+data Plugin = Plugin
+  { click  :: MouseBtn -> IO ()
+  , delay  :: Int
+  , status :: IO PluginStatus
+  }
 
-clickPlugin :: Plugin -> MouseBtn -> IO ()
-clickPlugin = click
-  -- click self
-  -- return ()
+type ClickFn      = IO ()
+type StatusFn     = MouseBtn -> IO ()
+type PluginID     = Int
+type PluginHandle = (PluginID, (ClickFn, StatusFn))
 
-runPlugin :: Plugin -> Int -> ChannelData -> IO ()
-runPlugin plugin myId cd = forever $ do
-  stat <- status plugin
+-- TODO: clickPlugin and runPlugin have same first two params now
+doPluginStuff :: ChannelData -> Plugin
+doPluginStuff = undefined
+
+clickPlugin :: ChannelData -> Plugin -> PluginID -> MouseBtn -> IO ()
+clickPlugin cd self myId btn = click self btn >>
+  status self >>= \stat -> putMVar cd (myId, stat)
+
+runPlugin :: ChannelData -> Plugin -> Int -> IO ()
+runPlugin cd self myId = forever $ do
+  stat <- status self
   putMVar cd (myId, stat)
-  threadDelay $ delay plugin * 1_000_000
+  threadDelay $ delay self * 1_000_000
 
 data Click
-  = MouseLeft
+  = MouseUnknown
+  | MouseLeft
   | MouseMiddle
   | MouseRight
   | MouseUp
   | MouseDown
-  | MouseUnknown
+  deriving (Enum, Eq, Show)
+
+intFromClick :: Click -> Int
+intFromClick = fromEnum
 
 clickFromInt :: Int -> Click
-clickFromInt btn =
-  case btn of
-    -- TODO: hide prelude "Right", "Left" for renaming?
-    1 -> MouseLeft
-    2 -> MouseMiddle
-    3 -> MouseRight
-    4 -> MouseUp
-    5 -> MouseDown
-    _ -> MouseUnknown
+clickFromInt = toEnum
 
 i3mojoStatus :: String -> (Urgency, String)
 i3mojoStatus input = (urg, text')
